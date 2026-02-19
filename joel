@@ -1,0 +1,638 @@
+import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { 
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer 
+} from 'recharts';
+import { 
+  LayoutDashboard, PlusCircle, TrendingUp, FileText, 
+  Users, BookOpen, ClipboardCheck, Scan, CheckCircle, 
+  Save, MessageSquare, Trash2, X, Award, 
+  AlignLeft, Camera, User, LogOut, Activity, Target, Layers,
+  ListChecks, Type, Hash, Star, Search, Check, ChevronRight, AlertCircle
+} from 'lucide-react';
+
+// --- Detailed Icon: Myron's Discobolus ---
+const DiscoboloIcon = ({ size = 24, className = "" }) => (
+  <svg 
+    width={size} 
+    height={size} 
+    viewBox="0 0 100 100" 
+    fill="currentColor" 
+    className={className}
+  >
+    <path d="M45,15 c-2,0 -4,2 -4,4 s2,4 4,4 s4,-2 4,-4 S47,15 45,15 z M42,25 c-5,2 -8,7 -8,12 c0,5 3,15 5,18 s8,2 12,-2 s10,-15 8,-20 s-10,-5 -17,2 z" />
+    <path d="M30,35 c-2,0 -10,2 -12,8 c-2,6 2,12 8,10 c3,-1 5,-5 6,-8 S32,35 30,35 z" />
+    <path d="M34,37 l-15,5 c-2,1 -3,4 -2,6 s4,3 6,2 l12,-4 c1,-2 0,-7 -1,-9 z" />
+    <path d="M52,35 c2,1 8,5 12,12 c4,7 2,15 -2,18 c-3,2 -8,0 -10,-4 c-2,-3 -1,-8 0,-10 s2,-5 0,-6 z" />
+    <path d="M48,55 c0,5 -2,15 -6,22 c-4,7 -10,12 -15,14 c-3,1 -5,-2 -4,-5 c1,-4 6,-10 10,-15 c4,-5 6,-12 6,-16 z" />
+    <path d="M52,55 c2,3 6,8 12,10 c6,2 12,0 15,-4 c2,-3 -1,-6 -5,-5 c-4,1 -8,0 -11,-3 c-3,-3 -6,-8 -7,-10 z" />
+  </svg>
+);
+
+const INITIAL_STUDENTS = [
+  { id: 1, name: 'Ana Silva', serie: '1ª Série', turma: 'A' },
+  { id: 2, name: 'Bruno Santos', serie: '1ª Série', turma: 'B' },
+  { id: 3, name: 'Carla Oliveira', serie: '2ª Série', turma: 'A' },
+  { id: 4, name: 'Diogo Meireles', serie: '1ª Série', turma: 'A' },
+  { id: 5, name: 'Elena Rodriguez', serie: '3ª Série', turma: 'A' },
+];
+
+export default function App() {
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const [selectedSerie, setSelectedSerie] = useState('1ª Série');
+  const [selectedTurma, setSelectedTurma] = useState('A');
+  const [selectedBimestre, setSelectedBimestre] = useState('1º Bimestre');
+  const [students, setStudents] = useState(INITIAL_STUDENTS);
+  
+  const [profileImage, setProfileImage] = useState(null);
+  const fileInputRef = useRef(null);
+
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newStudentName, setNewStudentName] = useState('');
+  
+  // Scanning States
+  const [isScanning, setIsScanning] = useState(false);
+  const [scanResult, setScanResult] = useState(null);
+  const [tipoGabarito, setTipoGabarito] = useState('prova'); 
+  const [gabaritoProva, setGabaritoProva] = useState(Array(10).fill('A'));
+  const [gabaritoSimulado, setGabaritoSimulado] = useState(Array(20).fill('A'));
+
+  // Theoretical States
+  const [isScanningTeoria, setIsScanningTeoria] = useState(false);
+  const [scanResultTeoria, setScanResultTeoria] = useState(null);
+  const [gabaritoTeoria, setGabaritoTeoria] = useState(Array(10).fill('A'));
+
+  const filteredStudents = useMemo(() => {
+    return students.filter(s => s.serie === selectedSerie && s.turma === selectedTurma);
+  }, [students, selectedSerie, selectedTurma]);
+
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => setProfileImage(reader.result);
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleAddStudent = (e) => {
+    e.preventDefault();
+    if (!newStudentName.trim()) return;
+    const newStudent = { id: Date.now(), name: newStudentName, serie: selectedSerie, turma: selectedTurma };
+    setStudents(prev => [...prev, newStudent]);
+    setNewStudentName('');
+    setShowAddModal(false);
+  };
+
+  const handleDeleteStudent = (id) => {
+    setStudents(prev => prev.filter(student => student.id !== id));
+  };
+
+  const handleRunScanner = () => {
+    if (filteredStudents.length === 0) return;
+    setIsScanning(true);
+    setScanResult(null);
+    setTimeout(() => {
+      setIsScanning(false);
+      const randomStudent = filteredStudents[Math.floor(Math.random() * filteredStudents.length)];
+      setScanResult({ name: randomStudent.name, nota: (Math.random() * 3 + 7).toFixed(1) });
+    }, 2000);
+  };
+
+  const handleRunScannerTeoria = () => {
+    if (filteredStudents.length === 0) return;
+    setIsScanningTeoria(true);
+    setScanResultTeoria(null);
+    setTimeout(() => {
+      setIsScanningTeoria(false);
+      const randomStudent = filteredStudents[Math.floor(Math.random() * filteredStudents.length)];
+      setScanResultTeoria({ name: randomStudent.name, nota: (Math.random() * 2 + 8).toFixed(1) });
+    }, 2000);
+  };
+
+  const updateGabarito = (index, value) => {
+    if (tipoGabarito === 'prova') {
+      const newG = [...gabaritoProva];
+      newG[index] = value;
+      setGabaritoProva(newG);
+    } else {
+      const newG = [...gabaritoSimulado];
+      newG[index] = value;
+      setGabaritoSimulado(newG);
+    }
+  };
+
+  const updateGabaritoTeoria = (index, value) => {
+    const newG = [...gabaritoTeoria];
+    newG[index] = value;
+    setGabaritoTeoria(newG);
+  };
+
+  const SidebarItem = ({ id, icon: Icon, label }) => (
+    <button
+      onClick={() => setActiveTab(id)}
+      className={`w-full flex items-center space-x-3 p-3 rounded-xl transition-all ${
+        activeTab === id ? 'bg-green-600 text-white shadow-lg shadow-green-900/40' : 'text-green-100/50 hover:bg-green-800 hover:text-white'
+      }`}
+    >
+      <Icon size={18} />
+      <span className="text-sm font-semibold">{label}</span>
+    </button>
+  );
+
+  return (
+    <div className="flex h-screen bg-emerald-50 text-slate-900 font-sans overflow-hidden">
+      
+      {/* Sidebar */}
+      <aside className="w-64 bg-green-950 text-white flex flex-col p-5 space-y-6 shadow-2xl z-30">
+        <div className="flex flex-col items-center space-y-4 pt-2">
+          <div className="relative group cursor-pointer" onClick={() => fileInputRef.current.click()}>
+            <div className="w-20 h-20 bg-green-900 rounded-3xl border-2 border-green-800 flex items-center justify-center overflow-hidden transition-all group-hover:border-green-400 group-hover:shadow-lg group-hover:shadow-green-500/20">
+              {profileImage ? (
+                <img src={profileImage} alt="User Logo" className="w-full h-full object-cover" />
+              ) : (
+                <DiscoboloIcon size={40} className="text-green-500 transition-transform group-hover:scale-110" />
+              )}
+              <div className="absolute inset-0 bg-green-950/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all">
+                <Camera size={24} className="text-white" />
+              </div>
+            </div>
+            <input type="file" ref={fileInputRef} onChange={handleImageChange} className="hidden" accept="image/*" />
+          </div>
+          <div className="text-center">
+            <span className="text-2xl font-black tracking-tighter text-green-400 block leading-none">EDF J7</span>
+            <span className="text-[8px] uppercase tracking-[0.3em] font-bold text-green-600 block mt-1">Pro Version</span>
+          </div>
+        </div>
+
+        <nav className="flex-1 space-y-1.5 pt-4">
+          <SidebarItem id="dashboard" icon={LayoutDashboard} label="Painel Geral" />
+          <SidebarItem id="alunos" icon={Users} label="Gestão de Alunos" />
+          <SidebarItem id="pratica" icon={ClipboardCheck} label="Aulas Práticas" />
+          <SidebarItem id="teoria" icon={BookOpen} label="Aulas Teóricas" />
+          <SidebarItem id="provas" icon={Scan} label="Provas / Scanner" />
+          <SidebarItem id="relatorios" icon={FileText} label="Relatórios" />
+        </nav>
+
+        <div className="p-4 bg-green-900/40 rounded-2xl border border-green-800/50 flex items-center space-x-3">
+          <div className="w-8 h-8 rounded-lg bg-green-800 flex items-center justify-center overflow-hidden border border-green-700">
+            {profileImage ? <img src={profileImage} alt="Avatar" className="w-full h-full object-cover" /> : <User size={16} className="text-green-400" />}
+          </div>
+          <div className="flex-1 min-w-0">
+             <p className="text-[10px] font-black uppercase text-green-100 truncate">Prof. Ricardo</p>
+             <p className="text-[8px] font-bold text-green-600 uppercase">Administrador</p>
+          </div>
+          <LogOut size={14} className="text-green-800 hover:text-red-400 cursor-pointer transition-colors" />
+        </div>
+      </aside>
+
+      <main className="flex-1 flex flex-col overflow-hidden relative">
+        {/* Top Header Bar */}
+        <header className="bg-white border-b border-green-100 px-8 py-4 flex flex-wrap items-center justify-between gap-4 shadow-sm z-20">
+          <div className="flex items-center space-x-8">
+            <div className="space-y-1">
+              <label className="text-[10px] font-black text-green-600/50 uppercase tracking-widest block">Filtro de Turma</label>
+              <div className="flex space-x-2">
+                <select value={selectedSerie} onChange={(e) => setSelectedSerie(e.target.value)} className="bg-green-50 border-none rounded-lg text-xs font-bold px-3 py-2 outline-none focus:ring-2 focus:ring-green-500 text-green-800 cursor-pointer transition-all">
+                  <option>1ª Série</option><option>2ª Série</option><option>3ª Série</option>
+                </select>
+                <select value={selectedTurma} onChange={(e) => setSelectedTurma(e.target.value)} className="bg-green-50 border-none rounded-lg text-xs font-bold px-4 py-2 outline-none focus:ring-2 focus:ring-green-500 text-green-800 cursor-pointer transition-all">
+                  <option>A</option><option>B</option>
+                </select>
+              </div>
+            </div>
+            <div className="space-y-1 border-l pl-8 border-green-100">
+              <label className="text-[10px] font-black text-green-600/50 uppercase tracking-widest block">Bimestre Atual</label>
+              <div className="flex bg-green-50 rounded-lg p-1">
+                {['1º', '2º', '3º', '4º'].map(b => (
+                  <button 
+                    key={b} 
+                    onClick={() => setSelectedBimestre(`${b} Bimestre`)} 
+                    className={`px-3 py-1.5 text-[10px] font-bold rounded-md transition-all ${selectedBimestre.startsWith(b) ? 'bg-white shadow text-green-700' : 'text-green-600/50 hover:text-green-700'}`}
+                  >
+                    {b}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+          <button onClick={() => setShowAddModal(true)} className="bg-green-600 hover:bg-green-700 text-white px-6 py-2.5 rounded-xl font-bold text-sm shadow-lg transition-transform active:scale-95 flex items-center space-x-2">
+            <PlusCircle size={18} /> <span>Cadastrar Aluno</span>
+          </button>
+        </header>
+
+        {/* Content Area */}
+        <div className="flex-1 overflow-y-auto p-8 relative z-10">
+          
+          {/* DASHBOARD */}
+          {activeTab === 'dashboard' && (
+            <div className="space-y-8 animate-in fade-in duration-500">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                 <div className="lg:col-span-2 bg-white p-8 rounded-[32px] border border-green-100 shadow-sm">
+                    <div className="flex justify-between items-center mb-8 text-slate-800">
+                      <h3 className="font-black uppercase text-xs tracking-widest flex items-center">
+                        <TrendingUp size={18} className="mr-2 text-green-500" /> Histórico de Notas (Médias Turma)
+                      </h3>
+                    </div>
+                    <div className="h-64">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={[{n:'Sem 1', v:7}, {n:'Sem 2', v:8.5}, {n:'Sem 3', v:8.2}, {n:'Sem 4', v:9}]}>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0fdf4" />
+                          <XAxis dataKey="n" axisLine={false} tickLine={false} tick={{fontSize: 11, fill: '#166534'}} />
+                          <YAxis hide domain={[0,10]} />
+                          <Tooltip contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)'}} />
+                          <Line type="monotone" dataKey="v" stroke="#22c55e" strokeWidth={4} dot={{r: 6, fill: '#22c55e', strokeWidth: 3, stroke: '#fff'}} />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                 </div>
+                 <div className="bg-green-900 rounded-[32px] p-8 text-white flex flex-col justify-between relative overflow-hidden shadow-xl">
+                    <DiscoboloIcon size={200} className="absolute -right-16 -bottom-16 text-white/5 rotate-12" />
+                    <div>
+                      <p className="text-[10px] font-black uppercase text-green-400 tracking-[0.2em]">Alunos na Turma</p>
+                      <p className="text-6xl font-black mt-2">{filteredStudents.length}</p>
+                    </div>
+                    <div className="pt-8 border-t border-white/10 mt-8">
+                      <p className="text-[10px] font-black uppercase text-green-400 tracking-[0.2em]">Frequência Média</p>
+                      <p className="text-4xl font-black mt-1">94%</p>
+                    </div>
+                 </div>
+              </div>
+
+              {/* Stats Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                {[
+                  { label: "Pendente Correção", val: "12", icon: FileText, color: "bg-blue-500" },
+                  { label: "Abaixo da Média", val: "03", icon: AlertCircle, color: "bg-orange-500" },
+                  { label: "Destaque Bimestre", val: "08", icon: Award, color: "bg-yellow-500" },
+                  { label: "Próxima Avaliação", val: "15/05", icon: Activity, color: "bg-green-500" }
+                ].map((stat, i) => (
+                  <div key={i} className="bg-white p-5 rounded-3xl border border-green-100 flex items-center space-x-4 shadow-sm">
+                    <div className={`p-3 rounded-2xl text-white ${stat.color} shadow-lg shadow-inner`}>
+                      <stat.icon size={20} />
+                    </div>
+                    <div>
+                      <p className="text-[9px] font-black uppercase text-slate-400 tracking-wider">{stat.label}</p>
+                      <p className="text-xl font-black text-slate-800">{stat.val}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* GESTÃO DE ALUNOS */}
+          {activeTab === 'alunos' && (
+            <div className="bg-white rounded-[32px] border border-green-100 shadow-sm overflow-hidden animate-in slide-in-from-bottom-4">
+              <div className="p-6 bg-green-50/50 flex justify-between items-center border-b border-green-100">
+                <h3 className="font-black text-green-900 text-xs uppercase tracking-widest">Lista de Matrículas - {selectedSerie} {selectedTurma}</h3>
+              </div>
+              <table className="w-full text-left">
+                <thead className="bg-green-50/30 text-[10px] font-black text-green-800/40 uppercase tracking-widest border-b border-green-100">
+                  <tr>
+                    <th className="px-8 py-5">Nome Completo</th>
+                    <th className="px-8 py-5 text-center">Status</th>
+                    <th className="px-8 py-5 text-center">Ações</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-green-50">
+                  {filteredStudents.length > 0 ? filteredStudents.map(s => (
+                    <tr key={s.id} className="hover:bg-green-50/30 transition-colors group text-slate-700">
+                      <td className="px-8 py-4 font-bold uppercase text-sm">{s.name}</td>
+                      <td className="px-8 py-4 text-center">
+                        <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-[9px] font-black uppercase">Ativo</span>
+                      </td>
+                      <td className="px-8 py-4 flex justify-center space-x-2">
+                        <button className="p-2 text-slate-400 hover:text-green-600 transition-colors"><MessageSquare size={16} /></button>
+                        <button onClick={() => handleDeleteStudent(s.id)} className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"><Trash2 size={16} /></button>
+                      </td>
+                    </tr>
+                  )) : (
+                    <tr>
+                      <td colSpan="3" className="p-12 text-center">
+                        <p className="text-slate-400 font-bold uppercase text-xs">Nenhum aluno cadastrado nesta turma.</p>
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* AULAS PRÁTICAS */}
+          {activeTab === 'pratica' && (
+            <div className="space-y-6 animate-in slide-in-from-bottom-4">
+              <div className="bg-white p-6 rounded-2xl border border-green-100 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
+                <div className="flex items-center space-x-4">
+                  <div className="p-3 bg-green-600 text-white rounded-xl shadow-lg shadow-green-100"><ClipboardCheck size={24} /></div>
+                  <div>
+                    <h3 className="font-black text-slate-800 uppercase text-sm tracking-tighter">Diário de Atividades Práticas</h3>
+                    <p className="text-[10px] font-bold text-green-500 uppercase tracking-widest">{selectedBimestre}</p>
+                  </div>
+                </div>
+                <div className="flex space-x-3">
+                   <button className="bg-green-50 text-green-700 px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-[0.1em] border border-green-200">
+                     Limpar Tudo
+                   </button>
+                   <button className="bg-green-900 text-white px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-[0.1em] flex items-center space-x-2 shadow-lg hover:shadow-green-900/20 transition-all active:scale-95">
+                    <Save size={14} /> <span>Salvar Diário</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-[32px] border border-green-100 shadow-sm overflow-hidden overflow-x-auto">
+                <table className="w-full min-w-[900px]">
+                  <thead className="bg-green-950 text-[10px] font-black text-green-100 uppercase tracking-widest">
+                    <tr>
+                      <th className="px-6 py-6 text-left w-1/4">Aluno</th>
+                      <th className="px-4 py-6 text-center">Presença</th>
+                      <th className="px-4 py-6 text-center">Engajamento</th>
+                      <th className="px-4 py-6 text-center">Nota Técnica</th>
+                      <th className="px-6 py-6 text-left">Observações</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-green-50 text-slate-700">
+                    {filteredStudents.map(s => (
+                      <tr key={s.id} className="hover:bg-green-50/20 transition-colors">
+                        <td className="px-6 py-5 font-bold text-sm uppercase flex items-center space-x-3">
+                            <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-black text-slate-400 border border-slate-200">{s.name.charAt(0)}</div>
+                            <span>{s.name}</span>
+                        </td>
+                        <td className="px-4 py-5 text-center">
+                          <input type="checkbox" className="w-5 h-5 accent-green-600" defaultChecked />
+                        </td>
+                        <td className="px-4 py-5 text-center">
+                          <input type="number" step="1" min="0" max="10" defaultValue="10" className="w-16 bg-green-50 border border-green-100 rounded-lg p-2 text-center text-xs font-black text-green-700 outline-none shadow-inner" />
+                        </td>
+                        <td className="px-4 py-5 text-center">
+                          <input type="number" step="0.5" max="10" min="0" placeholder="0.0" className="w-20 bg-green-50 border border-green-100 rounded-lg p-2.5 text-center text-xs font-black text-green-700 shadow-inner outline-none focus:bg-white focus:ring-1 focus:ring-green-600 transition-all" />
+                        </td>
+                        <td className="px-6 py-5">
+                          <div className="flex items-center space-x-2 bg-slate-50 rounded-xl px-4 py-2 border border-slate-100 focus-within:bg-white focus-within:ring-1 focus-within:ring-green-200 transition-all">
+                             <MessageSquare size={12} className="text-slate-300" />
+                             <input type="text" placeholder="Adicionar feedback..." className="w-full bg-transparent border-none text-[11px] font-medium text-slate-500 outline-none" />
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* AULAS TEÓRICAS */}
+          {activeTab === 'teoria' && (
+            <div className="space-y-6 animate-in slide-in-from-bottom-4">
+              <div className="bg-white p-6 rounded-2xl border border-green-100 shadow-sm flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                  <div className="p-3 bg-green-600 text-white rounded-xl shadow-lg"><BookOpen size={24} /></div>
+                  <div>
+                    <h3 className="font-black text-slate-800 uppercase text-sm tracking-tighter">Avaliação de Atividades Teóricas</h3>
+                    <p className="text-[10px] font-bold text-green-500 uppercase tracking-widest">{selectedBimestre}</p>
+                  </div>
+                </div>
+                <button className="bg-green-900 text-white px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center space-x-2 shadow-lg">
+                   <Save size={14} /> <span>Salvar Lançamentos</span>
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+                <div className="xl:col-span-4 bg-white p-6 rounded-[32px] border border-green-100 shadow-sm">
+                  <h3 className="text-xs font-black text-green-900 uppercase tracking-widest mb-6 flex items-center">
+                    <ListChecks size={18} className="mr-2 text-green-500" /> Gabarito Atividade
+                  </h3>
+                  <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                    {gabaritoTeoria.map((val, i) => (
+                      <div key={i} className="flex items-center justify-between bg-green-50/30 p-2 rounded-xl border border-green-100/50">
+                        <span className="text-[10px] font-black text-green-800/40 w-8">Q{i+1}</span>
+                        <div className="flex space-x-1">
+                          {['A','B','C','D','E'].map(opt => (
+                            <button 
+                              key={opt}
+                              onClick={() => updateGabaritoTeoria(i, opt)}
+                              className={`w-7 h-7 rounded-lg flex items-center justify-center text-[10px] font-bold transition-all ${val === opt ? 'bg-green-600 text-white shadow-md' : 'bg-white text-slate-400 border border-slate-100 hover:border-green-200'}`}
+                            >
+                              {opt}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="xl:col-span-8 bg-green-950 rounded-[32px] p-6 text-white relative overflow-hidden shadow-xl min-h-[400px] flex flex-col">
+                  <DiscoboloIcon size={200} className="absolute -right-16 -bottom-16 text-white/5 rotate-12" />
+                  <div className={`flex-1 rounded-[24px] border-4 border-dashed flex flex-col items-center justify-center transition-all ${isScanningTeoria ? 'bg-green-500 border-green-300' : 'bg-green-900 border-green-800 hover:border-green-600'}`}>
+                    {isScanningTeoria ? (
+                      <div className="flex flex-col items-center space-y-4">
+                        <Activity size={48} className="animate-pulse text-green-200" />
+                        <span className="text-[10px] font-black uppercase tracking-widest">Sincronizando Respostas...</span>
+                      </div>
+                    ) : (
+                      <div className="text-center space-y-4">
+                        <Camera size={40} className="text-green-500 mx-auto" />
+                        <button onClick={handleRunScannerTeoria} className="bg-white text-green-950 px-8 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest hover:scale-105 transition-transform active:scale-95 shadow-xl">Scanner Atividade Teórica</button>
+                      </div>
+                    )}
+                  </div>
+                  {scanResultTeoria && (
+                    <div className="mt-4 bg-white rounded-2xl p-4 text-slate-800 flex items-center justify-between shadow-2xl animate-in zoom-in-95 border-l-8 border-green-500">
+                       <div className="flex items-center space-x-3">
+                         <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center text-green-600"><CheckCircle size={20} /></div>
+                         <div>
+                           <p className="text-[9px] font-black text-slate-400 uppercase leading-tight">Aluno Detectado</p>
+                           <p className="font-black text-sm uppercase leading-tight">{scanResultTeoria.name}</p>
+                         </div>
+                       </div>
+                       <div className="text-right">
+                         <p className="text-[9px] font-black text-slate-400 uppercase leading-tight">Nota Final</p>
+                         <p className="text-2xl font-black text-green-600 leading-tight">{scanResultTeoria.nota}</p>
+                       </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* PROVAS / SCANNER */}
+          {activeTab === 'provas' && (
+            <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 animate-in slide-in-from-bottom-4">
+              
+              <div className="xl:col-span-4 space-y-6">
+                <div className="bg-white p-6 rounded-[32px] border border-green-100 shadow-sm">
+                  <h3 className="text-xs font-black text-green-900 uppercase tracking-widest mb-6 flex items-center">
+                    <ListChecks size={18} className="mr-2 text-green-500" /> Configuração de Gabaritos
+                  </h3>
+                  
+                  <div className="flex bg-green-50 p-1 rounded-2xl mb-6">
+                    <button 
+                      onClick={() => setTipoGabarito('prova')}
+                      className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${tipoGabarito === 'prova' ? 'bg-white text-green-700 shadow-sm' : 'text-green-600/50 hover:text-green-700'}`}
+                    >
+                      Prova (10q)
+                    </button>
+                    <button 
+                      onClick={() => setTipoGabarito('simulado')}
+                      className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${tipoGabarito === 'simulado' ? 'bg-white text-green-700 shadow-sm' : 'text-green-600/50 hover:text-green-700'}`}
+                    >
+                      Simulado (20q)
+                    </button>
+                  </div>
+
+                  <div className="space-y-2 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+                    {(tipoGabarito === 'prova' ? gabaritoProva : gabaritoSimulado).map((val, i) => (
+                      <div key={i} className="flex items-center justify-between bg-green-50/30 p-2 rounded-xl border border-green-100/50">
+                        <span className="text-[10px] font-black text-green-800/40 w-8">Q{i+1}</span>
+                        <div className="flex space-x-1">
+                          {['A','B','C','D','E'].map(opt => (
+                            <button 
+                              key={opt}
+                              onClick={() => updateGabarito(i, opt)}
+                              className={`w-7 h-7 rounded-lg flex items-center justify-center text-[10px] font-bold transition-all ${val === opt ? 'bg-green-600 text-white shadow-md' : 'bg-white text-slate-400 border border-slate-100 hover:border-green-200'}`}
+                            >
+                              {opt}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="xl:col-span-8 space-y-6">
+                <div className="bg-green-900 rounded-[40px] p-8 text-white relative overflow-hidden shadow-2xl min-h-[600px] flex flex-col">
+                  <DiscoboloIcon size={300} className="absolute -right-20 -bottom-20 text-white/5 rotate-12" />
+                  
+                  <div className="relative z-10 mb-8">
+                    <div className="flex items-center space-x-4">
+                      <div className="w-12 h-12 bg-green-500 rounded-2xl flex items-center justify-center shadow-lg"><Camera size={24} /></div>
+                      <div>
+                        <h3 className="text-xl font-black uppercase tracking-tighter leading-none">Scanner de Avaliações</h3>
+                        <p className="text-green-400 text-[10px] font-bold uppercase tracking-widest mt-1">Lendo Gabarito de {tipoGabarito === 'prova' ? 'Prova' : 'Simulado'}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className={`flex-1 rounded-[32px] border-4 border-dashed flex flex-col items-center justify-center transition-all ${isScanning ? 'bg-green-500 border-green-300' : 'bg-green-800/50 border-green-700 hover:border-green-500'}`}>
+                    {isScanning ? (
+                      <div className="flex flex-col items-center space-y-4">
+                        <Activity size={64} className="animate-pulse text-green-200" />
+                        <span className="text-xs font-black uppercase tracking-widest">Processando Folha de Resposta...</span>
+                      </div>
+                    ) : (
+                      <div className="text-center space-y-6">
+                         <div className="w-24 h-24 bg-green-700 rounded-full flex items-center justify-center mx-auto shadow-inner"><Scan size={48} className="text-green-400" /></div>
+                         <div>
+                            <p className="text-sm font-bold text-green-100 uppercase mb-2">Pronto para Captura</p>
+                            <p className="text-[10px] font-medium text-green-400/60 max-w-xs mx-auto">Posicione a folha de respostas dentro do campo de visão da câmera.</p>
+                         </div>
+                         <button onClick={handleRunScanner} className="bg-white text-green-950 px-10 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:scale-105 transition-transform shadow-2xl active:scale-95">Iniciar Leitura</button>
+                      </div>
+                    )}
+                  </div>
+                  {scanResult && (
+                    <div className="mt-8 bg-white rounded-[24px] p-6 text-slate-800 flex items-center justify-between shadow-2xl animate-in slide-in-from-bottom-2 border-b-8 border-green-600">
+                       <div className="flex items-center space-x-5">
+                         <div className="w-14 h-14 bg-green-100 rounded-2xl flex items-center justify-center text-green-600 shadow-sm"><Check size={32} /></div>
+                         <div>
+                           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Resultado do Scanner</p>
+                           <p className="font-black text-xl uppercase tracking-tighter">{scanResult.name}</p>
+                         </div>
+                       </div>
+                       <div className="text-right bg-green-50 px-6 py-2 rounded-2xl border border-green-100">
+                         <p className="text-[10px] font-black text-green-800/50 uppercase tracking-widest">Nota Atribuída</p>
+                         <p className="text-4xl font-black text-green-700">{scanResult.nota}</p>
+                       </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* RELATÓRIOS */}
+          {activeTab === 'relatorios' && (
+             <div className="animate-in fade-in duration-500 space-y-6">
+                <div className="bg-white p-8 rounded-[32px] border border-green-100 shadow-sm">
+                   <h3 className="text-xl font-black text-slate-800 mb-8 flex items-center">
+                     <FileText size={24} className="mr-3 text-green-500" /> Gerador de Relatórios
+                   </h3>
+                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {[
+                        { title: "Boletim Individual", desc: "Desempenho detalhado por aluno", icon: User },
+                        { title: "Média da Turma", desc: "Comparativo entre turmas e séries", icon: Layers },
+                        { title: "Frequência Mensal", desc: "Relatório de presenças em aulas práticas", icon: ClipboardCheck }
+                      ].map((rel, i) => (
+                        <div key={i} className="group p-6 rounded-[24px] border border-slate-100 bg-slate-50/50 hover:bg-white hover:border-green-200 hover:shadow-xl hover:shadow-green-900/5 transition-all cursor-pointer">
+                           <div className="w-12 h-12 rounded-2xl bg-white border border-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-green-600 group-hover:text-white transition-all shadow-sm mb-4">
+                             <rel.icon size={20} />
+                           </div>
+                           <h4 className="font-black text-slate-800 uppercase text-xs mb-1">{rel.title}</h4>
+                           <p className="text-[10px] font-medium text-slate-400">{rel.desc}</p>
+                           <div className="mt-4 pt-4 border-t border-slate-100 flex items-center text-green-600 text-[10px] font-black uppercase opacity-0 group-hover:opacity-100 transition-all">
+                             Gerar PDF <ChevronRight size={12} className="ml-1" />
+                           </div>
+                        </div>
+                      ))}
+                   </div>
+                </div>
+             </div>
+          )}
+
+        </div>
+      </main>
+
+      {/* MODAL: ADICIONAR ALUNO */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-green-950/80 backdrop-blur-sm z-[100] flex items-center justify-center p-6">
+          <div className="bg-white w-full max-w-md rounded-[40px] p-8 shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center mb-8">
+              <h2 className="text-xl font-black text-green-900 uppercase tracking-tighter">Novo Aluno</h2>
+              <button onClick={() => setShowAddModal(false)} className="text-slate-300 hover:text-slate-600 transition-colors"><X size={24} /></button>
+            </div>
+            <form onSubmit={handleAddStudent} className="space-y-6">
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nome Completo</label>
+                <input 
+                  type="text" 
+                  value={newStudentName}
+                  onChange={(e) => setNewStudentName(e.target.value)}
+                  placeholder="Ex: João da Silva"
+                  className="w-full bg-green-50 border-2 border-green-50 rounded-2xl p-4 text-sm font-bold text-slate-800 outline-none focus:border-green-400 transition-all shadow-inner"
+                  autoFocus
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Série</label>
+                  <div className="w-full bg-slate-50 rounded-2xl p-4 text-xs font-black text-slate-500 border border-slate-100 uppercase">{selectedSerie}</div>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Turma</label>
+                  <div className="w-full bg-slate-50 rounded-2xl p-4 text-xs font-black text-slate-500 border border-slate-100 uppercase">{selectedTurma}</div>
+                </div>
+              </div>
+              <button type="submit" className="w-full bg-green-600 hover:bg-green-700 text-white font-black uppercase text-xs tracking-widest py-4 rounded-2xl shadow-xl shadow-green-900/20 transition-all active:scale-95 flex items-center justify-center space-x-2">
+                <PlusCircle size={18} /> <span>Confirmar Matrícula</span>
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Global Styles */}
+      <style dangerouslySetInnerHTML={{ __html: `
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+        body { font-family: 'Plus Jakarta Sans', sans-serif; }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #14532d; border-radius: 10px; }
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+      `}} />
+    </div>
+  );
+}
